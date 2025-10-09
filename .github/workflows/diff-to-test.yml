@@ -1,0 +1,42 @@
+name: Diff to Tests
+on:
+  push:
+    branches: [ "main", "master" ]
+
+jobs:
+  diff_and_dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare BEFORE..AFTER
+        run: |
+          BEFORE=${{ github.event.before }}
+          AFTER=${{ github.sha }}
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/compare/${BEFORE}...${AFTER}" \
+            > diff.json
+          jq '.files | length' diff.json || true
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - name: Extract endpoints
+        run: |
+          pip install --quiet jq
+          python scripts/extract_endpoints.py diff.json endpoints.json
+          cat endpoints.json
+
+      - name: Dispatch to B-tests
+        env:
+          GH_TOKEN: ${{ secrets.B_TESTS_PAT }}
+        run: |
+          OWNER="Nilbezer3"        # <-- kendi kullanıcı/organizasyonun
+          REPO="b-tests"           # <-- B repo adı
+          EVENT_TYPE="new_endpoints"
+          PAYLOAD=$(cat endpoints.json | jq -c .)
+          curl -s -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${GH_TOKEN}" \
+            https://api.github.com/repos/${OWNER}/${REPO}/dispatches \
+            -d "{\"event_type\":\"${EVENT_TYPE}\",\"client_payload\":${PAYLOAD}}"
