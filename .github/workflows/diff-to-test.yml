@@ -23,7 +23,7 @@ jobs:
 
       - name: Extract endpoints
         run: |
-          pip install --quiet jq
+          sudo apt update && sudo apt install jq -y
           python scripts/extract_endpoints.py diff.json endpoints.json
           cat endpoints.json
 
@@ -31,11 +31,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.B_TESTS_PAT }}
         run: |
-          OWNER="Nilbezer3"        # <-- kendi kullanıcı/organizasyonun
-          REPO="b-tests"           # <-- B repo adı
+          OWNER="Nilbezer3"
+          REPO="b-tests"
           EVENT_TYPE="new_endpoints"
-          PAYLOAD=$(cat endpoints.json | jq -c .)
-          curl -s -X POST \
+          PAYLOAD=$(jq -c . < endpoints.json)
+          curl -L \
+            -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: token ${GH_TOKEN}" \
             https://api.github.com/repos/${OWNER}/${REPO}/dispatches \
