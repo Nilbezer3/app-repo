@@ -6,6 +6,7 @@ app = FastAPI()
 def ping():
     return {"ok": True}
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
